@@ -1,0 +1,49 @@
+---
+title: 'Part One: Checking Normality'
+author: "Henry Siegler"
+date: '2022-04-07'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      warning = FALSE, 
+                      message = FALSE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+## Part One: Checking Normality
+
+__Write a Function__
+
+```{r}
+qq_plot_random <- function(input_vec) { 
+  
+  #sort the input vector
+  input_vec <- sort(input_vec)
+  
+  #randomly generate new vector with length, mean, and standard deviation of the input vector
+  random_vec <- rnorm(length(input_vec), 
+                      mean(input_vec), 
+                      sd(input_vec))
+  
+  #sort the randomly generated vector
+  random_vec <- sort(random_vec)
+  
+  #combine the columns of both vectors and create tibble
+  df <- cbind(input_vec, random_vec) %>% 
+    as_tibble()
+  
+  #plot the tibble in scatter plot with y = x reference line
+  df %>% 
+    ggplot() + 
+    geom_point(aes(x = random_vec, y = input_vec)) + 
+    geom_abline(slope = 1, intercept = 0) + 
+    labs(x = "Randomly Generated Values",
+         y = "Values of Input Vector", 
+         title = "Q-Q Plot")
+}
+```

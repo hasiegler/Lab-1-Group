@@ -1,0 +1,127 @@
+---
+title: 'Part Two: Data Analysis'
+author: "Henry Siegler"
+date: '2022-04-07'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, 
+                      message = FALSE, 
+                      warning = FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(here)
+library(lubridate)
+library(boot)
+```
+
+## The Data
+
+```{r}
+oscars <- read_csv(here("Oscars-demographics-DFE.csv"))
+```
+
+## Warm-Ups
+
+__1. Which movie(s) won the most unique "Big 5" awards?__
+
+```{r}
+oscars %>% 
+  distinct(movie, award) %>% 
+  group_by(movie) %>% 
+  count(sort = TRUE) %>% 
+  filter(n == 3) %>% 
+  pull(movie)
+```
+
+All the above movies won 3 unique "Big 5"awards.
+
+__2. Of all the actresses who have won the Best Actress award, what is the most common first name?__
+
+```{r}
+oscars %>% 
+  filter(award == "Best Actress") %>% 
+  distinct(person) %>% 
+  separate(person, c("first", "last"), sep = " ") %>% 
+  group_by(first) %>% 
+  count(sort = TRUE) %>% 
+  as_tibble() %>% 
+  slice_max(n) %>% 
+  pull(first)
+```
+The most common first name is "Helen".
+
+__3. What US State, or non-US country, has produced the most Oscar Winners (for the awards in the dataset)?__
+
+```{r}
+oscars %>% 
+  distinct(person, birthplace) %>% 
+  separate(birthplace, into = c("city", "state"), ", ") %>% 
+  mutate(state = case_when(city == "New York City" ~ "Ny",
+                           TRUE ~ state)) %>% 
+  group_by(state) %>% 
+  count(sort = TRUE) %>% 
+  as_tibble() %>% 
+  slice_max(n)
+```
+
+Out of all US states or non-US countries, New York has produced the most Oscar winners, with 55 winners.
+
+## Age and Gender
+
+```{r}
+oscars_linear_data <- oscars %>% 
+  #filter the data so that we only have awards based on gender
+  filter(award != "Best Director") %>% 
+  #create binary variable equal to 1 is person is male and 0 if female
+  mutate(male = case_when(award == "Best Actress" | 
+                          award == "Best Supporting Actress" ~ 0,
+                          award == "Best Actor" | 
+                          award == "Best Supporting Actor" ~ 1))
+```
+
+```{r}
+oscars_linear_data_dates <- oscars_linear_data %>% 
+  #create a new date of birth variable from the original character date variable
+  mutate(date_of_birth2 = dmy(date_of_birth),
+         year = year(date_of_birth2))
+
+#the dmy() function read in many of the birth years in the 2000s when they should have been in 1900s
+oscars_dates_incorrect <- oscars_linear_data_dates %>% 
+  #filter to find dates that were read incorrectly
+  filter(year > 2000) %>% 
+  mutate(month = month(date_of_birth2),
+         day = day(date_of_birth2),
+         #change the birth year so that it is in 1900s
+         year = year - 100,
+         date_of_birth2 = as.Date(paste(year, month, day, sep = "-"))) %>% 
+  select(-year, - month, - day)
+
+oscars_dates_correct <- oscars_linear_data_dates %>% 
+  #filter to find dates that were read in correctly
+  filter(year < 2000) %>% 
+  select(-year)
+
+#combine the data sets of the dates that were read correctly with the fixed dates of those that were read incorrectly
+oscars_correct <- rbind(oscars_dates_correct, oscars_dates_incorrect)
+
+oscars_correct <- oscars_correct %>% 
+  #make a variable that has the date of award on February 1 of the year of the award
+  mutate(date_of_award = as.Date(paste(year_of_award, 2, 1, sep = "-")),
+         #create age variable, which is difference between the date the award was received and the birth date of the winner
+         age = time_length(difftime(date_of_award, date_of_birth2), "years"))
+```
+
+```{r}
+oscars_correct <- oscars_correct %>% 
+  #create a year of award variable where the first year of the awards is 0
+  mutate(year_award_0 = year_of_award - min(oscars_correct$year_of_award))
+
+model <- oscars_correct %>% 
+  lm(age ~ year_award_0 + male + I(male*year_award_0), data = .)
+
+summary(model)
+```
