@@ -1,7 +1,6 @@
 ---
 title: 'Part Two: Data Analysis'
-author: "Henry Siegler"
-date: '2022-04-07'
+author: "Henry Siegler and Michael Knauss"
 output: html_document
 ---
 
@@ -14,8 +13,7 @@ knitr::opts_chunk$set(echo = TRUE,
 ```{r}
 library(tidyverse)
 library(here)
-library(lubridate)
-library(boot)
+library(modelr)
 ```
 
 ## The Data
