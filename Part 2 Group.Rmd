@@ -42,116 +42,118 @@ All the above movies won 3 unique "Big 5"awards.
 __2. Of all the actresses who have won the Best Actress award, what is the most common first name?__
 
 ```{r}
-oscars %>% 
-  filter(award == "Best Actress") %>% 
-  distinct(person) %>% 
-  separate(person, c("first", "last"), sep = " ") %>% 
-  group_by(first) %>% 
-  count(sort = TRUE) %>% 
-  as_tibble() %>% 
-  slice_max(n) %>% 
-  pull(first)
+name <- oscars %>% 
+  distinct(person, .keep_all = TRUE) %>%
+  filter(award == "Best Actress") %>%
+  pull(person) %>%
+  word(1) %>%
+  table() %>% 
+  sort(decreasing = TRUE)
+
+head(name)
 ```
-The most common first name is "Helen".
+The most common first name is "Helen", with 3 occurences.
 
 __3. What US State, or non-US country, has produced the most Oscar Winners (for the awards in the dataset)?__
 
 ```{r}
-oscars %>% 
-  distinct(person, birthplace) %>% 
-  separate(birthplace, into = c("city", "state"), ", ") %>% 
-  mutate(state = case_when(city == "New York City" ~ "Ny",
-                           TRUE ~ state)) %>% 
-  group_by(state) %>% 
-  count(sort = TRUE) %>% 
-  as_tibble() %>% 
-  slice_max(n)
+oscars$birthplace <- gsub("New York City", 
+                          'New York City, Ny', 
+                          oscars$birthplace)
+
+state <- oscars %>% 
+  distinct(person, .keep_all = TRUE) %>%
+  pull(birthplace) %>%
+  word(-1) %>%
+  table() %>% 
+  sort(decreasing = TRUE)
+
+head(state)
 ```
 
-Out of all US states or non-US countries, New York has produced the most Oscar winners, with 55 winners.
+Out of all US states or non-US countries, New York has produced the most Oscar winners, with 56 winners.
 
 ## Age and Gender
 
 ```{r}
-oscars_linear_data <- oscars %>% 
-  #filter the data so that we only have awards based on gender
-  filter(award != "Best Director") %>% 
-  #create binary variable equal to 1 is person is male and 0 if female
-  mutate(male = case_when(award == "Best Actress" | 
-                          award == "Best Supporting Actress" ~ 0,
-                          award == "Best Actor" | 
-                          award == "Best Supporting Actor" ~ 1))
+oscars$date_of_birth[85] <- "5-Oct-1972"
+oscars$date_of_birth[55] <- "18-Aug-1936"
+
+modeldata <- oscars %>%
+  separate(
+    date_of_birth, 
+    into = c("day", "month", "year"), 
+    sep = "-") %>%
+  mutate(
+    day = as.numeric(day),
+    year = as.numeric(year),
+    year = case_when(year < 100 ~ 1900 + year,
+                     TRUE ~ year),
+    age = year_of_award - year,
+    male = case_when(
+      award == "Best Actress" |
+      award == "Best Supporting Actress" ~ 0,
+      award == "Best Actor" |
+      award == "Best Supporting Actor" ~ 1,
+      TRUE ~ 99)) %>%
+  filter(male != 99)
 ```
 
-```{r}
-oscars_linear_data_dates <- oscars_linear_data %>% 
-  #create a new date of birth variable from the original character date variable
-  mutate(date_of_birth2 = dmy(date_of_birth),
-         year = year(date_of_birth2))
-
-#the dmy() function read in many of the birth years in the 2000s when they should have been in 1900s
-oscars_dates_incorrect <- oscars_linear_data_dates %>% 
-  #filter to find dates that were read incorrectly
-  filter(year > 2000) %>% 
-  mutate(month = month(date_of_birth2),
-         day = day(date_of_birth2),
-         #change the birth year so that it is in 1900s
-         year = year - 100,
-         date_of_birth2 = as.Date(paste(year, month, day, sep = "-"))) %>% 
-  select(-year, - month, - day)
-
-oscars_dates_correct <- oscars_linear_data_dates %>% 
-  #filter to find dates that were read in correctly
-  filter(year < 2000) %>% 
-  select(-year)
-
-#combine the data sets of the dates that were read correctly with the fixed dates of those that were read incorrectly
-oscars_correct <- rbind(oscars_dates_correct, oscars_dates_incorrect)
-
-oscars_correct <- oscars_correct %>% 
-  #make a variable that has the date of award on February 1 of the year of the award
-  mutate(date_of_award = as.Date(paste(year_of_award, 2, 1, sep = "-")),
-         #create age variable, which is difference between the date the award was received and the birth date of the winner
-         age = time_length(difftime(date_of_award, date_of_birth2), "years"))
-```
 
 ```{r}
-oscars_correct <- oscars_correct %>% 
+modeldata <- modeldata %>% 
   #create a year of award variable where the first year of the awards is 0
-  mutate(year_award_0 = year_of_award - min(oscars_correct$year_of_award))
+  mutate(year_award_0 = year_of_award - min(modeldata$year_of_award))
 
-model <- oscars_correct %>% 
-  lm(age ~ year_award_0 + male + I(male*year_award_0), data = .)
+
+model <- lm(age ~ year_award_0 + male, data = modeldata)
 
 summary(model)
 ```
 
-In the multiple linear regression model with the interaction term, we can see that the typical age of acting award winners has increased over time, for both males and females. However, the effect of the year of the award on the typical age of the award winner is higher for males than it is for females, as the interaction term with male as the binary variable has a positive value of 0.0397. This means that the effect of an additional year of award received on typical age of award winner is 0.0397 years higher for males than for females. However, the interaction term and the year of award variable both do not have statistically significant effects on age of award winner. Therefore, we cannot conclude that the typical age of acting award winners has changed over time, and we cannot conclude that the effect is different for the two genders of awards.
+A linear model was created to predict the age of the Oscars winner using the year they won and their gender, using a binary variable with 1 indicating male and 0 indicating female. The model predicts how the age of the average winner has changed over time as well as if male and female groups win awards at different ages.
+
+From this model, we can say that there is moderate to strong evidence (p-value = 0.0517) that the average age of winners is changing over time and we have very strong evidence that males and female winners are of different average ages. The interaction term was removed from the model because it was not significant, telling us that the effect of the year of the award on the typical age of the award winner is similar for males and females.
+The model estimates that the average age of winners increases by about three weeks (1/18th of a year), as the year of the award increases by 1 year. The model estimates that the average male winner is 9.5 years older than the average female winner.
 
 ## Bootstrapping
 
-I used the below link to help write the function.
-
-[source](https://towardsdatascience.com/a-practical-guide-to-bootstrap-with-r-examples-bd975ec6dcea)
-
 ```{r}
-set.seed(35)
+notwhite <- oscars %>% 
+  mutate(
+    ethnicity = case_when(
+      race_ethnicity != "White" ~ 1,
+      TRUE ~ 0
+    )) %>% 
+  select(ethnicity)
 
-#create function that returns the percent of "Big 5 Award" award winners who are not white 
-pct_not_white <- function(data, i) {
-  d2 <- data[i,]
-  return((sum(d2$race_ethnicity != "White") / nrow(d2)) * 100)
-}
+set.seed(37)
 
-#create 1,000 bootstrap samples and use the function to find percent
-bootstrap <- boot(oscars, pct_not_white, R = 1000)
+boot <- bootstrap(notwhite, 1000)
+boot <- mutate(boot, prop = map_dbl(strap, ~mean(data.frame(.x)$ethnicity)))
 
-#find the 95% confidence interval
-boot.ci(boot.out = bootstrap, type = c("norm"))
+#Confidence Interval
+lower = quantile(boot$prop, 0.025)
+upper = quantile(boot$prop, 0.975)
+
+
+p <- boot %>% 
+  ggplot() +
+  geom_density(aes(x = prop, y = ..density..), fill = "grey") 
+  
+mapdata <- ggplot_build(p)$data[[1]]
+
+lower
+upper
 ```
 
-The approximate 95\% confidence interval for the percent of "Big 5 Award" award winners who are not white is (4.472, 9.109). 
-
 ```{r}
-plot(bootstrap)
+p <-  p + 
+  geom_area(aes(x=x, y=y), data = subset(mapdata, x < lower), fill = "red") + 
+  geom_area(aes(x=x, y=y), data = subset(mapdata, x > upper), fill = "red") +
+  ggtitle("Bootstraped Distribution of Proportions of Non-White Oscar Winners")
+
+p
 ```
+
+We are 95% confident that the true proportion of non-white oscars big 5 award winners is between 4.3% and 9.29%. The rejection regions for a hypothesis test for this proportion is shaded on the graph.
