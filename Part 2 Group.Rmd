@@ -125,3 +125,33 @@ model <- oscars_correct %>%
 
 summary(model)
 ```
+
+In the multiple linear regression model with the interaction term, we can see that the typical age of acting award winners has increased over time, for both males and females. However, the effect of the year of the award on the typical age of the award winner is higher for males than it is for females, as the interaction term with male as the binary variable has a positive value of 0.0397. This means that the effect of an additional year of award received on typical age of award winner is 0.0397 years higher for males than for females. However, the interaction term and the year of award variable both do not have statistically significant effects on age of award winner. Therefore, we cannot conclude that the typical age of acting award winners has changed over time, and we cannot conclude that the effect is different for the two genders of awards.
+
+## Bootstrapping
+
+I used the below link to help write the function.
+
+[source](https://towardsdatascience.com/a-practical-guide-to-bootstrap-with-r-examples-bd975ec6dcea)
+
+```{r}
+set.seed(35)
+
+#create function that returns the percent of "Big 5 Award" award winners who are not white 
+pct_not_white <- function(data, i) {
+  d2 <- data[i,]
+  return((sum(d2$race_ethnicity != "White") / nrow(d2)) * 100)
+}
+
+#create 1,000 bootstrap samples and use the function to find percent
+bootstrap <- boot(oscars, pct_not_white, R = 1000)
+
+#find the 95% confidence interval
+boot.ci(boot.out = bootstrap, type = c("norm"))
+```
+
+The approximate 95\% confidence interval for the percent of "Big 5 Award" award winners who are not white is (4.472, 9.109). 
+
+```{r}
+plot(bootstrap)
+```
