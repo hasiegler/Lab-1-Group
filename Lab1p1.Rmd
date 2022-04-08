@@ -1,0 +1,47 @@
+---
+title: "Lab 1: Part 1"
+author: "Michael Knauss"
+date: "4/2/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries}
+library(tidyverse)
+```
+
+# Checking for Normality
+
+### Making Function
+```{r}
+manualqqplot <- function(data) {
+  #Feeds data input into x variable, standardizes and sorts
+  x <- data
+  x <- (x - mean(x))/sd(x)
+  x <- sort(x)
+  
+  #Generates random sample from standard normal and sorts to match with input, and plots
+  y <- rnorm(100, 0, 1)
+  y <- sort(y)
+  finaldata = data.frame(cbind(x,y))
+ 
+  p <- finaldata %>%
+    ggplot() + 
+    geom_point(aes(x=x, y=y)) +
+    ggtitle("Normal QQPlot") + 
+    ylab("Normal Quantiles") + 
+    xlab("Sample Quantiles")
+
+  return(p)
+}
+```
+
+### Testing t distribution
+```{r}
+#Generates data from t distribution to feed into function
+data = rt(100,10)
+manualqqplot(data)
+```
