@@ -47,3 +47,12 @@ qq_plot_random <- function(input_vec) {
          title = "Q-Q Plot")
 }
 ```
+
+```{r}
+head(mtcars)
+```
+
+```{r}
+#use the mpg variable from the mtcars data set to create the qq plot
+qq_plot_random(mtcars$mpg)
+```
