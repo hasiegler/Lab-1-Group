@@ -38,13 +38,15 @@ qq_plot_random <- function(input_vec) {
     as_tibble()
   
   #plot the tibble in scatter plot with y = x reference line
-  df %>% 
-    ggplot() + 
-    geom_point(aes(x = random_vec, y = input_vec)) + 
-    geom_abline(slope = 1, intercept = 0) + 
-    labs(x = "Randomly Generated Values",
-         y = "Values of Input Vector", 
-         title = "Q-Q Plot")
+  p <- df %>% 
+        ggplot() + 
+        geom_point(aes(x = random_vec, y = input_vec)) + 
+        geom_abline(slope = 1, intercept = 0) + 
+        labs(x = "Randomly Generated Values",
+             y = "Values of Input Vector", 
+             title = "Q-Q Plot")
+  
+  return(p)
 }
 ```
 
