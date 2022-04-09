@@ -1,7 +1,6 @@
 ---
 title: 'Part One: Checking Normality'
-author: "Henry Siegler"
-date: '2022-04-07'
+author: "Henry Siegler and Michael Knauss"
 output: html_document
 ---
 
